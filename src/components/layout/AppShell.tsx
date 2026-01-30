@@ -6,11 +6,11 @@ import { Footer } from "@/components/Footer";
 import { AuthProvider, useAuth } from "@/components/layout/AuthProvider";
 
 function InnerShell({ children }: { children: ReactNode }) {
-  const { role, isAuthenticated } = useAuth();
+  const { role, isAuthenticated, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <Header role={role} isAuthenticated={isAuthenticated} />
+      <Header role={role} isAuthenticated={isAuthenticated} onSignOut={signOut} />
       <main className="mx-auto max-w-7xl px-4 pb-10 pt-4 lg:px-6">
         {children}
       </main>

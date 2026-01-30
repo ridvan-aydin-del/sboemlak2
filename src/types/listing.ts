@@ -35,6 +35,8 @@ export interface Listing {
   is_furnished: boolean | null;
   usage_status: string | null;
   is_credit_eligible: boolean | null;
+  credit_limit: number | null;
+  eminevim_fuzul_evim_uygun: boolean | null;
   deed_status: string | null;
   duess: number | null;
   rooms: string | null;
@@ -44,5 +46,12 @@ export interface Listing {
   detail_type: ListingDetailType | null;
   is_active: boolean;
   contact_number: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  commission_type?: "dahil" | "haric" | null;
+  seller_note?: string | null;
+  admin_note?: string | null;
+  /** Admin notu - sadece admin görür (DB: gizli_not) */
+  gizli_not?: string | null;
 }
 

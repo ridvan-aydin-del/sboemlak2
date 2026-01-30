@@ -11,9 +11,16 @@ interface ListingView {
   view_count: number;
 }
 
+interface OwnerProfile {
+  id: string;
+  full_name: string | null;
+  whatsapp_number: string | null;
+}
+
 export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
   const [listing, setListing] = useState<Listing | null>(null);
+  const [ownerProfile, setOwnerProfile] = useState<OwnerProfile | null>(null);
   const [views, setViews] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -36,9 +43,20 @@ export default function ListingDetailPage() {
         return;
       }
 
-      setListing(data as unknown as Listing);
+      const listingData = data as unknown as Listing;
+      setListing(listingData);
       setSelectedImageIndex(0);
-      setLoading(false);
+
+      if (listingData?.created_by) {
+        const { data: profileData } = await supabaseBrowserClient
+          .from("sbo_profiles")
+          .select("id, full_name, whatsapp_number")
+          .eq("id", listingData.created_by)
+          .maybeSingle();
+        setOwnerProfile((profileData as OwnerProfile) ?? null);
+      } else {
+        setOwnerProfile(null);
+      }
 
       const { data: viewData } = await supabaseBrowserClient
         .from("sbo_listing_views")
@@ -49,6 +67,7 @@ export default function ListingDetailPage() {
       if (viewData) {
         setViews((viewData as ListingView).view_count);
       }
+      setLoading(false);
     };
 
     fetchListing();
@@ -85,7 +104,8 @@ export default function ListingDetailPage() {
       ? listing.images
       : ["/window.svg"];
 
-  const waNumber = listing.contact_number
+  const contactNumber = ownerProfile?.whatsapp_number ?? listing.contact_number;
+  const waNumber = contactNumber
     ?.replace(/\D/g, "")
     .replace(/^0/, "");
   const waHref = waNumber ? `https://wa.me/90${waNumber}` : null;
@@ -97,6 +117,20 @@ export default function ListingDetailPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {/* Üst bilgi - Görüntülenme, İlan No, Tarih */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 shadow-sm">
+        {views != null && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+            <i className="fa-solid fa-eye text-[10px]" />
+            {views.toLocaleString("tr-TR")} görüntülenme
+          </span>
+        )}
+      
+        <span className="text-xs text-slate-600">
+          Yayın Tarihi: {new Date(listing.created_at).toLocaleDateString("tr-TR")}
+        </span>
+      </div>
+
       {/* Sahibinden tarzı: Sol fotoğraflar, Sağ bilgiler */}
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Sol - Galeri */}
@@ -302,13 +336,13 @@ export default function ListingDetailPage() {
               Emlakçı iletişimi
             </h2>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {listing.contact_number && (
+              {contactNumber && (
                 <a
-                  href={`tel:${listing.contact_number}`}
+                  href={`tel:${contactNumber}`}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
                 >
                   <i className="fa-solid fa-phone text-sm" />
-                  {listing.contact_number}
+                  {contactNumber}
                 </a>
               )}
               {waHref && (
@@ -345,20 +379,6 @@ export default function ListingDetailPage() {
         )}
       </section>
 
-      {/* Alt bilgi - İlan No, Tarih, Görüntülenme */}
-      <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-        <span>İlan No: {listing.id}</span>
-        <span className="mx-2">•</span>
-        <span>
-          Yayın: {new Date(listing.created_at).toLocaleDateString("tr-TR")}
-        </span>
-        {views != null && (
-          <>
-            <span className="mx-2">•</span>
-            <span>Görüntülenme: {views.toLocaleString("tr-TR")}</span>
-          </>
-        )}
-      </div>
     </div>
   );
 }

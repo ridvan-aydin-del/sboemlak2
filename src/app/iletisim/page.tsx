@@ -1,16 +1,20 @@
 export default function IletisimPage() {
+  const address = "Eyüp Sultan, Merkez Sk. No:20/B, 34885 Sancaktepe/İstanbul";
+  const directionsUrl =
+    "https://www.google.com/maps/dir/?api=1&origin=Sancaktepe+Samandıra+Metro+Durağı,+Sancaktepe,+İstanbul&destination=Eyüp+Sultan,+Merkez+Sk.+No:20/B,+34885+Sancaktepe/İstanbul";
+  const mapEmbedQuery = encodeURIComponent("Eyüp Sultan, Merkez Sk. No:20/B, 34885 Sancaktepe İstanbul");
+
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 md:flex-row">
-      <section className="flex-1 space-y-4">
+    <div className="mx-auto max-w-4xl space-y-6">
+      <section className="space-y-4">
         <h1 className="text-xl font-semibold text-slate-900">İletişim</h1>
         <p className="text-sm text-slate-700">
-          Aşağıdaki bilgiler demo amaçlıdır; gerçek ofis adresinizi, telefon ve
-          e-posta bilgilerinizi burada güncelleyebilirsiniz.
+          Ofisimize Sancaktepe Samandıra metro durağından ulaşabilirsiniz.
+          Aşağıdaki haritadan konumumuzu görebilir veya yol tarifi alabilirsiniz.
         </p>
         <div className="space-y-2 text-sm text-slate-700">
           <p>
-            <span className="font-semibold">Ofis Adresi:</span> İstanbul, Örnek
-            Mah. Demo Sk. No: 1
+            <span className="font-semibold">Ofis Adresi:</span> {address}
           </p>
           <p>
             <span className="font-semibold">Telefon:</span>{" "}
@@ -28,9 +32,38 @@ export default function IletisimPage() {
             </a>
           </p>
         </div>
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700"
+        >
+          <i className="fa-solid fa-location-arrow" />
+          Samandıra Metro&apos;dan yol tarifi al
+        </a>
       </section>
 
-      <section className="flex-1 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <h2 className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-900">
+          Konum – Google Haritalar
+        </h2>
+        <div className="relative h-[320px] w-full">
+          <iframe
+            title="SBO Emlak ofis konumu"
+            src={`https://www.google.com/maps?q=${mapEmbedQuery}&output=embed`}
+            className="absolute inset-0 h-full w-full border-0"
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+        <p className="border-t border-slate-100 px-4 py-2 text-[11px] text-slate-500">
+          Samandıra metro durağından ofisimize nasıl ulaşacağınızı görmek için
+          &quot;Samandıra Metro&apos;dan yol tarifi al&quot; butonuna tıklayın.
+        </p>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-900">
           Hızlı İletişim Formu
         </h2>
@@ -83,4 +116,3 @@ export default function IletisimPage() {
     </div>
   );
 }
-

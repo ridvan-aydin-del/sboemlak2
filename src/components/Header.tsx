@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type UserRole } from "@/types/profile";
-import { Building2, Home, LogIn, Shield, Star, UserCheck } from "lucide-react";
+import { Building2, ChevronDown, Home, LogIn, LogOut, Shield, Star, UserCheck } from "lucide-react";
 
 interface HeaderProps {
   role: UserRole | null;
   isAuthenticated: boolean;
+  onSignOut?: () => Promise<void>;
 }
 
 const navBaseClasses =
@@ -40,17 +42,100 @@ function NavLink({
   );
 }
 
-export function Header({ role, isAuthenticated }: HeaderProps) {
+export function Header({ role, isAuthenticated, onSignOut }: HeaderProps) {
+  const [adminOpen, setAdminOpen] = useState(false);
   const isAdmin = role === "admin";
   const isSales = role === "satis-elemani";
   const isCustomer = role === "musteri";
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2.5 lg:px-6">
-        {/* Sol - Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
+      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-2.5 sm:gap-4 lg:px-6">
+        {/* Sol - Menü */}
+        <nav className="flex flex-1 items-center justify-start gap-1 sm:gap-2 md:flex">
+          <NavLink href="/hakkimizda" label="Hakkımızda" icon={<Building2 size={14} />} />
+          <NavLink href="/iletisim" label="İletişim" icon={<UserCheck size={14} />} />
+
+          {isAdmin && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAdminOpen(!adminOpen)}
+                className={`${navBaseClasses} flex items-center gap-1 ${
+                  adminOpen ? "bg-emerald-600/10 text-emerald-700" : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <Shield size={14} />
+                <span>Admin</span>
+                <ChevronDown size={12} className={adminOpen ? "rotate-180" : ""} />
+              </button>
+              {adminOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setAdminOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                    <Link
+                      href="/admin/ilanlar"
+                      className="block px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                      onClick={() => setAdminOpen(false)}
+                    >
+                      Tüm İlanlar
+                    </Link>
+                    <Link
+                      href="/admin/kullanicilar"
+                      className="block px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                      onClick={() => setAdminOpen(false)}
+                    >
+                      Kullanıcılar
+                    </Link>
+                    <Link
+                      href="/ilan-ekle"
+                      className="block px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                      onClick={() => setAdminOpen(false)}
+                    >
+                      İlan Ekle
+                    </Link>
+                    <Link
+                      href="/favorilerim"
+                      className="block px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                      onClick={() => setAdminOpen(false)}
+                    >
+                      Favoriler
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {isSales && (
+            <>
+              <NavLink href="/ilanlarim" label="İlanlarım" icon={<Building2 size={14} />} />
+              <NavLink href="/ilan-ekle" label="İlan Ekle" icon={<Star size={14} />} />
+            </>
+          )}
+
+          {isCustomer && (
+            <NavLink href="/favorilerim" label="Favorilerim" icon={<Star size={14} />} />
+          )}
+
+          {!isAuthenticated && (
+            <>
+              <NavLink href="/ilan-talebi" label="İlan Talebi" icon={<UserCheck size={14} />} />
+              <NavLink href="/giris" label="Giriş Yap" icon={<LogIn size={14} />} />
+            </>
+          )}
+        </nav>
+
+        {/* Orta - Logo */}
+        <Link
+          href="/"
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
             <Home size={18} />
           </div>
           <div className="flex flex-col leading-tight">
@@ -58,85 +143,23 @@ export function Header({ role, isAuthenticated }: HeaderProps) {
               SBO Emlak
             </span>
             <span className="text-[11px] text-slate-500">
-              Akıllı gayrimenkul platformu
+              Yetkili · Onaylı emlak danışmanlığı
             </span>
           </div>
         </Link>
 
-        {/* Orta - Menü */}
-        <nav className="hidden items-center gap-2 md:flex">
-          {/* Herkese açık */}
-          <NavLink
-            href="/hakkimizda"
-            label="Hakkımızda"
-            icon={<Building2 size={14} />}
-          />
-          <NavLink
-            href="/iletisim"
-            label="İletişim"
-            icon={<UserCheck size={14} />}
-          />
-
-          {/* Role göre */}
-          {isAdmin && (
-            <>
-              <NavLink
-                href="/admin/ilanlar"
-                label="Tüm İlanlar"
-                icon={<Shield size={14} />}
-              />
-              <NavLink
-                href="/admin/kullanicilar"
-                label="Kullanıcılar"
-                icon={<UserCheck size={14} />}
-              />
-              <NavLink
-                href="/ilan-ekle"
-                label="İlan Ekle"
-                icon={<Star size={14} />}
-              />
-              <NavLink
-                href="/favorilerim"
-                label="Favoriler"
-                icon={<Star size={14} />}
-              />
-            </>
+        {/* Sağ - Sosyal + Çıkış yap */}
+        <div className="flex flex-1 items-center justify-end gap-1 sm:gap-2">
+          {isAuthenticated && onSignOut && (
+            <button
+              type="button"
+              onClick={() => void onSignOut()}
+              className="flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1.5 text-[11px] font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 sm:px-3"
+            >
+              <LogOut size={12} />
+              <span className="hidden sm:inline">Çıkış Yap</span>
+            </button>
           )}
-
-          {isSales && (
-            <>
-              <NavLink
-                href="/ilanlarim"
-                label="İlanlarım"
-                icon={<Building2 size={14} />}
-              />
-              <NavLink
-                href="/ilan-ekle"
-                label="İlan Ekle"
-                icon={<Star size={14} />}
-              />
-            </>
-          )}
-
-          {isCustomer && (
-            <NavLink
-              href="/favorilerim"
-              label="Favorilerim"
-              icon={<Star size={14} />}
-            />
-          )}
-
-          {!isAuthenticated && (
-            <NavLink
-              href="/giris"
-              label="Giriş Yap / Kayıt Ol"
-              icon={<LogIn size={14} />}
-            />
-          )}
-        </nav>
-
-        {/* Sağ - Sosyal ve aksiyon */}
-        <div className="flex items-center gap-2">
           <div className="hidden items-center gap-1 sm:flex">
             <a
               href="https://instagram.com"
@@ -176,14 +199,13 @@ export function Header({ role, isAuthenticated }: HeaderProps) {
             </a>
           </div>
 
-          {/* Mobil menüde basit giriş butonu */}
           {!isAuthenticated && (
             <Link
               href="/giris"
               className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 md:hidden"
             >
               <LogIn size={14} />
-              <span>Giriş Yap</span>
+              <span>Giriş</span>
             </Link>
           )}
         </div>

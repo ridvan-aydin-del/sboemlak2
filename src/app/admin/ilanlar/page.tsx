@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import { ListingCard } from "@/components/ListingCard";
+import { CustomerInfoPopup } from "@/components/CustomerInfoPopup";
 import type { Listing } from "@/types/listing";
 
 interface DateFilter {
@@ -16,12 +17,14 @@ export default function AdminIlanlarPage() {
     start: "",
     end: "",
   });
-
+  const [showOnlyInactive, setShowOnlyInactive] = useState(false);
+  const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [customerPopupListing, setCustomerPopupListing] = useState<Listing | null>(null);
 
   useEffect(() => {
     void fetchListings();
-  }, []);
+  }, [dates.start, dates.end, showOnlyInactive]);
 
   const fetchListings = async () => {
     let query = supabaseBrowserClient
@@ -36,13 +39,27 @@ export default function AdminIlanlarPage() {
     if (dates.end) {
       query = query.lte("created_at", dates.end);
     }
+    if (showOnlyInactive) {
+      query = query.eq("is_active", false);
+    }
 
     const { data, error } = await query;
     if (error) {
       console.error(error);
       return;
     }
-    setListings((data ?? []) as unknown as Listing[]);
+    const items = (data ?? []) as unknown as Listing[];
+    setListings(items);
+    setAdminNotes((prev) => {
+      const next = { ...prev };
+      items.forEach((l) => {
+        const note = (l as Listing & { gizli_not?: string | null }).gizli_not ?? l.admin_note;
+        if (note != null && next[l.id] === undefined) {
+          next[l.id] = note;
+        }
+      });
+      return next;
+    });
   };
 
   const handleUpdateStatus = async (
@@ -59,6 +76,20 @@ export default function AdminIlanlarPage() {
       return;
     }
 
+    void fetchListings();
+  };
+
+  const handleSaveAdminNote = async (id: string) => {
+    const note = adminNotes[id] ?? "";
+    const { error } = await supabaseBrowserClient
+      .from("sbo_listings")
+      .update({ gizli_not: note || null })
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
     void fetchListings();
   };
 
@@ -106,6 +137,15 @@ export default function AdminIlanlarPage() {
               className="rounded-lg border border-slate-200 px-2 py-1 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             />
           </div>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showOnlyInactive}
+              onChange={(e) => setShowOnlyInactive(e.target.checked)}
+              className="h-3 w-3"
+            />
+            <span className="text-slate-700">Pasife alınan ilanları göster</span>
+          </label>
           <button
             type="button"
             onClick={() => void fetchListings()}
@@ -134,30 +174,41 @@ export default function AdminIlanlarPage() {
                 </span>
               )}
             </div>
-            <ListingCard
-              listing={listing}
-              showAdminMeta
-              href={`/ilan/${listing.id}`}
-            />
-            {/* Not alanı - şimdilik sadece UI, veritabanında kolon olmadığı için persist edilmiyor */}
-            <textarea
-              rows={2}
-              className="mt-1 w-full rounded-lg border border-dashed border-slate-200 px-2 py-1 text-[11px] outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              placeholder="Bu ilana özel admin notu (veritabanına bağlamak için sbo_listings tablosuna bir kolon ekleyebilirsiniz)..."
-            />
+            <div className="flex items-start justify-between gap-2">
+              <ListingCard
+                listing={listing}
+                showAdminMeta
+                href={`/ilan/${listing.id}`}
+              />
+           
+            </div>
+            {listing.seller_note && (
+              <p className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1 text-[11px] text-slate-600">
+                <span className="font-medium text-slate-500">Satış danışmanı notu:</span>{" "}
+                {listing.seller_note}
+              </p>
+            )}
+            {/* Admin notu (gizli) - sadece admin görür */}
+            <div className="mt-1">
+              <label className="text-[11px] font-medium text-slate-500">Gizli not (sadece admin)</label>
+              <textarea
+                rows={2}
+                value={adminNotes[listing.id] ?? (listing as Listing & { gizli_not?: string | null }).gizli_not ?? ""}
+                onChange={(e) =>
+                  setAdminNotes((n) => ({ ...n, [listing.id]: e.target.value }))
+                }
+                className="mt-0.5 w-full rounded-lg border border-dashed border-slate-200 px-2 py-1 text-[11px] outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                placeholder="Bu ilana özel admin notu (satış danışmanı görmez)..."
+              />
+              <button
+                type="button"
+                onClick={() => handleSaveAdminNote(listing.id)}
+                className="mt-1 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-[11px] text-emerald-800 hover:bg-emerald-100"
+              >
+                Gizli notu kaydet
+              </button>
+            </div>
             <div className="flex flex-wrap gap-1 text-[11px]">
-              <button
-                type="button"
-                className="rounded-full border border-slate-200 px-3 py-1 text-slate-700 hover:border-emerald-500 hover:text-emerald-700"
-              >
-                Kaydet
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-slate-200 px-3 py-1 text-slate-700 hover:border-emerald-500 hover:text-emerald-700"
-              >
-                Düzenle
-              </button>
               {listing.is_active ? (
                 <button
                   type="button"
@@ -184,7 +235,14 @@ export default function AdminIlanlarPage() {
                 }
                 className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-100"
               >
-                {listing.featured ? "Öne Çıkarma" : "Öne Çıkar"}
+                {listing.featured ? "Vitrin'den çıkar" : "Vitrin'e ekle"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCustomerPopupListing(listing)}
+                className="shrink-0 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100"
+              >
+                Müşteri bilgisi
               </button>
               <button
                 type="button"
@@ -203,6 +261,14 @@ export default function AdminIlanlarPage() {
           </p>
         )}
       </div>
+
+      {customerPopupListing && (
+        <CustomerInfoPopup
+          listing={customerPopupListing}
+          onClose={() => setCustomerPopupListing(null)}
+          showAdminNote
+        />
+      )}
 
       {confirmId && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm">

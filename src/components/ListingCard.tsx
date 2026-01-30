@@ -6,10 +6,11 @@ import { MapPin, Maximize2, Bath } from "lucide-react";
 interface ListingCardProps {
   listing: Listing;
   showAdminMeta?: boolean;
+  showSellerNote?: boolean;
   href?: string;
 }
 
-export function ListingCard({ listing, showAdminMeta, href }: ListingCardProps) {
+export function ListingCard({ listing, showAdminMeta, showSellerNote, href }: ListingCardProps) {
   const cover =
     Array.isArray(listing.images) && listing.images.length > 0
       ? listing.images[0]
@@ -27,7 +28,7 @@ export function ListingCard({ listing, showAdminMeta, href }: ListingCardProps) 
         />
         {listing.featured && (
           <span className="absolute left-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase text-white shadow-sm">
-            Fırsat
+            Vitrin
           </span>
         )}
         <span className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-800 shadow-sm">
@@ -35,7 +36,12 @@ export function ListingCard({ listing, showAdminMeta, href }: ListingCardProps) 
             ? "Satılık"
             : listing.type === "kiralik"
             ? "Kiralık"
-            : "Devren Satılık"}
+            : "Devren Satılık"}{" "}
+          {listing.category === "konut"
+            ? "Konut"
+            : listing.category === "isYeri"
+            ? "İş Yeri"
+            : "Arsa"}
         </span>
       </div>
 
@@ -73,6 +79,16 @@ export function ListingCard({ listing, showAdminMeta, href }: ListingCardProps) 
               <span>{listing.bathroom_count} banyo</span>
             </span>
           )}
+          {listing.deed_status && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5">
+              Tapu: {listing.deed_status}
+            </span>
+          )}
+          {listing.is_credit_eligible && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">
+              Krediye Uygun
+            </span>
+          )}
         </div>
 
         {showAdminMeta && (
@@ -89,6 +105,12 @@ export function ListingCard({ listing, showAdminMeta, href }: ListingCardProps) 
                 year: "numeric",
               })}
             </p>
+          </div>
+        )}
+        {showSellerNote && listing.seller_note && (
+          <div className="mt-2 border-t border-dashed border-slate-100 pt-2 text-[11px] text-slate-600">
+            <p className="font-medium text-slate-700">Not:</p>
+            <p className="mt-0.5">{listing.seller_note}</p>
           </div>
         )}
       </div>

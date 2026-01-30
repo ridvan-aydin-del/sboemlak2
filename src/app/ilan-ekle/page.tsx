@@ -36,8 +36,17 @@ export default function IlanEklePage() {
     const deed_status = formData.get("deed_status") as string;
     const duess = Number(formData.get("duess") || 0);
     const is_credit_eligible = formData.get("is_credit_eligible") === "on";
+    const credit_limit = formData.get("credit_limit")
+      ? Number(formData.get("credit_limit"))
+      : null;
+    const eminevim_fuzul_evim_uygun =
+      formData.get("eminevim_fuzul_evim_uygun") === "on";
     const description = formData.get("description") as string;
     const contact_number = formData.get("contact_number") as string;
+    const customer_name = formData.get("customer_name") as string;
+    const customer_phone = formData.get("customer_phone") as string;
+    const commission_type = formData.get("commission_type") as "dahil" | "haric" | null;
+    const seller_note = formData.get("seller_note") as string;
     const images = imageUrls.length > 0 ? imageUrls : null;
 
     const {
@@ -73,6 +82,8 @@ export default function IlanEklePage() {
       is_furnished: formData.get("is_furnished") === "on",
       usage_status,
       is_credit_eligible,
+      credit_limit: credit_limit ?? null,
+      eminevim_fuzul_evim_uygun,
       deed_status,
       duess,
       rooms,
@@ -81,6 +92,10 @@ export default function IlanEklePage() {
       district,
       is_active: true,
       contact_number,
+      customer_name: customer_name || null,
+      customer_phone: customer_phone || null,
+      commission_type: commission_type || null,
+      seller_note: seller_note || null,
     });
 
     if (error) {
@@ -365,6 +380,24 @@ export default function IlanEklePage() {
             />
             Krediye Uygun
           </label>
+          <div className="flex items-center gap-2 md:col-span-2">
+            <label className="text-slate-700">Kredi Limiti (TL)</label>
+            <input
+              name="credit_limit"
+              type="number"
+              min={0}
+              className="w-32 rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              placeholder="Örn: 5000000"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-slate-700">
+            <input
+              type="checkbox"
+              name="eminevim_fuzul_evim_uygun"
+              className="h-3 w-3"
+            />
+            Eminevim / Fuzul Evim uygun
+          </label>
         </div>
 
         {/* İlan açıklaması + biçimlendirme */}
@@ -397,15 +430,52 @@ export default function IlanEklePage() {
           )}
         </div>
 
+      
+
+        <h2 className="mt-6 text-sm font-semibold text-slate-900">Müşteri Bilgileri</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-slate-700">
-              İletişim Telefonu
-            </label>
+            <label className="mb-1 block text-slate-700">Müşteri Ad-Soyad</label>
             <input
-              name="contact_number"
+              name="customer_name"
+              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              placeholder="Örn: Ahmet Yılmaz"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-slate-700">Müşteri Telefon No</label>
+            <input
+              name="customer_phone"
               className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               placeholder="0 (5__) ___ __ __"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-slate-700">Komisyon</label>
+            <div className="flex gap-2">
+              {[
+                { value: "dahil", label: "Dahil" },
+                { value: "haric", label: "Hariç" },
+              ].map((opt) => (
+                <label key={opt.value} className="flex items-center gap-1 text-slate-700">
+                  <input
+                    type="radio"
+                    name="commission_type"
+                    value={opt.value}
+                    className="h-3 w-3"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-slate-700">Not</label>
+            <textarea
+              name="seller_note"
+              rows={3}
+              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              placeholder="Bu ilana özel notunuz (İlanlarım sayfasında görünür)"
             />
           </div>
         </div>
