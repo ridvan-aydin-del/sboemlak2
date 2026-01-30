@@ -12,24 +12,21 @@ const LIMITS = {
   budget_max: 999_999_999_999,
 } as const;
 
-// RATE LIMIT AYARLARI
-const RATE_LIMIT = {
-  maxRequests: 2,
-  windowMinutes: 10,
-  blockHours: 5,
-};
-
 function getClientIp(req: Request): string | null {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]?.trim() ?? null;
+
   return req.headers.get("x-real-ip") ?? null;
 }
 
 function clampNum(val: unknown, min: number, max: number): number | null {
   if (val == null || val === "") return null;
+
   const n = Number(val);
   if (Number.isNaN(n)) return null;
+
   if (n < min || n > max) return null;
+
   return n;
 }
 
@@ -47,9 +44,18 @@ export async function POST(req: Request) {
       note,
     } = body;
 
+    /*
+    ======================
+    VALIDATION
+    ======================
+    */
+
     if (!customer_name || !customer_phone || !listing_type || !property_type) {
       return NextResponse.json(
-        { error: "Ad Soyad, Telefon, Satılık/Kiralık ve Konut/İş Yeri/Arsa zorunludur." },
+        {
+          error:
+            "Ad Soyad, Telefon, Satılık/Kiralık ve Konut/İş Yeri/Arsa zorunludur.",
+        },
         { status: 400 }
       );
     }
@@ -74,104 +80,84 @@ export async function POST(req: Request) {
     const minB = clampNum(min_budget, LIMITS.budget_min, LIMITS.budget_max);
     const maxB = clampNum(max_budget, LIMITS.budget_min, LIMITS.budget_max);
 
-    if (min_budget != null && min_budget !== "" && minB === null) {
-      return NextResponse.json(
-        { error: "Min. bütçe geçerli bir sayı olmalı." },
-        { status: 400 }
-      );
-    }
-
-    if (max_budget != null && max_budget !== "" && maxB === null) {
-      return NextResponse.json(
-        { error: "Max. bütçe geçerli bir sayı olmalı." },
-        { status: 400 }
-      );
-    }
-
     const noteVal =
       note != null && String(note).trim() !== ""
         ? String(note).trim().slice(0, LIMITS.note)
         : null;
 
     const ip = getClientIp(req);
-    console.log("IP:", ip);
-console.log("Headers:", Object.fromEntries(req.headers));
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     /*
-     ======================
-     RATE LIMIT KONTROLÜ
-     ======================
+    ======================
+    DB RATE LIMIT (ATOMIC)
+    ======================
     */
 
     if (ip) {
-      const now = new Date();
-
-      const windowStart = new Date(
-        now.getTime() - RATE_LIMIT.windowMinutes * 60 * 1000
+      const { data, error } = await supabase.rpc(
+        "check_and_increment_rate_limit",
+        { user_ip: ip }
       );
 
-      const blockStart = new Date(
-        now.getTime() - RATE_LIMIT.blockHours * 60 * 60 * 1000
-      );
+      if (error) {
+        console.error("Rate limit rpc error:", error);
+        return NextResponse.json(
+          { error: "Rate limit kontrolü başarısız." },
+          { status: 500 }
+        );
+      }
 
-      // Son 10 dakika kontrol
-      const { count: recentCount } = await supabase
-        .from("sbo_customer_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("ip_address", ip)
-        .gte("created_at", windowStart.toISOString());
-
-      if ((recentCount ?? 0) >= RATE_LIMIT.maxRequests) {
-        // 5 saat blok kontrolü
-        const { count: blockCount } = await supabase
-          .from("sbo_customer_requests")
-          .select("*", { count: "exact", head: true })
-          .eq("ip_address", ip)
-          .gte("created_at", blockStart.toISOString());
-
-        if ((blockCount ?? 0) >= RATE_LIMIT.maxRequests) {
-          return NextResponse.json(
-            {
-              error:
-                "Çok fazla talep gönderdiniz. Lütfen 5 saat sonra tekrar deneyin.",
-            },
-            { status: 429 }
-          );
-        }
+      if (!data) {
+        return NextResponse.json(
+          { error: "10 dakika içinde en fazla 2 talep gönderebilirsiniz." },
+          { status: 429 }
+        );
       }
     }
 
     /*
-     ======================
-     INSERT
-     ======================
+    ======================
+    INSERT REQUEST
+    ======================
     */
 
-    const { error } = await supabase.from("sbo_customer_requests").insert({
-      customer_name: name,
-      customer_phone: phone,
-      listing_type: listing_type === "kiralik" ? "kiralik" : "satilik",
-      property_type:
-        property_type === "isYeri"
-          ? "isYeri"
-          : property_type === "arsa"
-          ? "arsa"
-          : "konut",
-      min_budget: minB,
-      max_budget: maxB,
-      note: noteVal,
-      ip_address: ip || null,
-    });
+    const { error: insertError } = await supabase
+      .from("sbo_customer_requests")
+      .insert({
+        customer_name: name,
+        customer_phone: phone,
+        listing_type: listing_type === "kiralik" ? "kiralik" : "satilik",
+        property_type:
+          property_type === "isYeri"
+            ? "isYeri"
+            : property_type === "arsa"
+            ? "arsa"
+            : "konut",
+        min_budget: minB,
+        max_budget: maxB,
+        note: noteVal,
+        ip_address: ip || null,
+        created_at: new Date().toISOString(),
+      });
 
-    if (error) {
-      console.error("customer-request insert error", error);
-      return NextResponse.json({ error: "Kayıt oluşturulamadı" }, { status: 500 });
+    if (insertError) {
+      console.error("Insert error:", insertError);
+
+      return NextResponse.json(
+        { error: "Kayıt oluşturulamadı" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("customer-request error", e);
-    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Sunucu hatası" },
+      { status: 500 }
+    );
   }
 }
