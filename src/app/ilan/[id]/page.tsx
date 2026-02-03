@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import type { Listing } from "@/types/listing";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Heart, HandCoins } from "lucide-react";
 
 interface ListingView {
   view_count: number;
@@ -25,6 +26,14 @@ export default function ListingDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [favoriteOpen, setFavoriteOpen] = useState(false);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [favoriteSubmitting, setFavoriteSubmitting] = useState(false);
+  const [offerSubmitting, setOfferSubmitting] = useState(false);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
+  const [offerError, setOfferError] = useState<string | null>(null);
+  const [favoriteSuccess, setFavoriteSuccess] = useState(false);
+  const [offerSuccess, setOfferSuccess] = useState(false);
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -361,8 +370,68 @@ export default function ListingDetailPage() {
               Detaylı adres ve randevu bilgileri için iletişim sayfasını kullanabilirsiniz.
             </p>
           </section>
+
+          {/* Favoriye Ekle */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-base font-semibold text-slate-900">Favoriye Ekle</h2>
+            <p className="mb-3 text-xs text-slate-600">
+              Bu ilanı favorilerinize eklemek için iletişim bilgilerinizi bırakın; sizinle iletişime geçelim.
+            </p>
+            <button
+              type="button"
+              onClick={() => { setFavoriteOpen(true); setFavoriteError(null); setFavoriteSuccess(false); }}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+            >
+              <Heart size={18} />
+              Favoriye Ekle
+            </button>
+          </section>
+
+          {/* Teklif Ver */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-base font-semibold text-slate-900">Teklif Ver</h2>
+            <p className="mb-3 text-xs text-slate-600">
+              Bu ilan için teklifinizi iletebilirsiniz. İsim, telefon ve teklif tutarınızı girin.
+            </p>
+            <button
+              type="button"
+              onClick={() => { setOfferOpen(true); setOfferError(null); setOfferSuccess(false); }}
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
+            >
+              <HandCoins size={18} />
+              Teklif Ver
+            </button>
+          </section>
         </aside>
       </div>
+
+      {/* Favoriye Ekle modal */}
+      {favoriteOpen && listing && (
+        <FavoriteModal
+          listingId={listing.id}
+          onClose={() => setFavoriteOpen(false)}
+          submitting={favoriteSubmitting}
+          setSubmitting={setFavoriteSubmitting}
+          error={favoriteError}
+          setError={setFavoriteError}
+          success={favoriteSuccess}
+          setSuccess={setFavoriteSuccess}
+        />
+      )}
+
+      {/* Teklif Ver modal */}
+      {offerOpen && listing && (
+        <OfferModal
+          listingId={listing.id}
+          onClose={() => setOfferOpen(false)}
+          submitting={offerSubmitting}
+          setSubmitting={setOfferSubmitting}
+          error={offerError}
+          setError={setOfferError}
+          success={offerSuccess}
+          setSuccess={setOfferSuccess}
+        />
+      )}
 
       {/* İlan açıklaması - tam genişlik */}
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -379,6 +448,234 @@ export default function ListingDetailPage() {
         )}
       </section>
 
+    </div>
+  );
+}
+
+function FavoriteModal({
+  listingId,
+  onClose,
+  submitting,
+  setSubmitting,
+  error,
+  setError,
+  success,
+  setSuccess,
+}: {
+  listingId: string;
+  onClose: () => void;
+  submitting: boolean;
+  setSubmitting: (v: boolean) => void;
+  error: string | null;
+  setError: (v: string | null) => void;
+  success: boolean;
+  setSuccess: (v: boolean) => void;
+}) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/favorite-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id: listingId,
+          customer_name: name.trim(),
+          customer_phone: phone.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || "Bir hata oluştu.");
+        return;
+      }
+      setSuccess(true);
+      setName("");
+      setPhone("");
+    } catch {
+      setError("Bağlantı hatası.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">Favoriye Ekle</h3>
+          <button type="button" onClick={onClose} className="rounded-full p-1 text-slate-500 hover:bg-slate-100" aria-label="Kapat">
+            <X size={20} />
+          </button>
+        </div>
+        {success ? (
+          <p className="text-sm text-emerald-700">Bilgileriniz alındı. En kısa sürede sizinle iletişime geçeceğiz.</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Ad Soyad</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value.slice(0, 100))}
+                maxLength={100}
+                required
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Adınız soyadınız"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Telefon</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.slice(0, 20))}
+                maxLength={20}
+                required
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="05XX XXX XX XX"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/giris" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                Giriş Yap
+              </Link>
+              <Link href="/giris?kayit=1" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                Kayıt Ol
+              </Link>
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button type="submit" disabled={submitting} className="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+              {submitting ? "Gönderiliyor..." : "Gönder"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OfferModal({
+  listingId,
+  onClose,
+  submitting,
+  setSubmitting,
+  error,
+  setError,
+  success,
+  setSuccess,
+}: {
+  listingId: string;
+  onClose: () => void;
+  submitting: boolean;
+  setSubmitting: (v: boolean) => void;
+  error: string | null;
+  setError: (v: string | null) => void;
+  success: boolean;
+  setSuccess: (v: boolean) => void;
+}) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/listing-offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id: listingId,
+          customer_name: name.trim(),
+          customer_phone: phone.trim(),
+          offer_amount: amount.trim() === "" ? null : Number(amount.replace(/\D/g, "")),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || "Bir hata oluştu.");
+        return;
+      }
+      setSuccess(true);
+      setName("");
+      setPhone("");
+      setAmount("");
+    } catch {
+      setError("Bağlantı hatası.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">Teklif Ver</h3>
+          <button type="button" onClick={onClose} className="rounded-full p-1 text-slate-500 hover:bg-slate-100" aria-label="Kapat">
+            <X size={20} />
+          </button>
+        </div>
+        {success ? (
+          <p className="text-sm text-emerald-700">Teklifiniz alındı. En kısa sürede değerlendirilecektir.</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Ad Soyad</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value.slice(0, 100))}
+                maxLength={100}
+                required
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Adınız soyadınız"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Telefon</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.slice(0, 20))}
+                maxLength={20}
+                required
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="05XX XXX XX XX"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Teklif tutarı (TL)</label>
+              <input
+                type="text"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value.replace(/\D/g, "").slice(0, 15))}
+                required
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Örn: 2500000"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/giris" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                Giriş Yap
+              </Link>
+              <Link href="/giris?kayit=1" className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                Kayıt Ol
+              </Link>
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button type="submit" disabled={submitting} className="w-full rounded-lg bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50">
+              {submitting ? "Gönderiliyor..." : "Teklif Gönder"}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

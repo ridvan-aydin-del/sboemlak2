@@ -8,17 +8,21 @@ interface ListingCardProps {
   showAdminMeta?: boolean;
   showSellerNote?: boolean;
   href?: string;
+  /** Ana sayfa için daha büyük kart */
+  size?: "default" | "large";
 }
 
-export function ListingCard({ listing, showAdminMeta, showSellerNote, href }: ListingCardProps) {
+export function ListingCard({ listing, showAdminMeta, showSellerNote, href, size = "default" }: ListingCardProps) {
   const cover =
     Array.isArray(listing.images) && listing.images.length > 0
       ? listing.images[0]
       : "/window.svg";
 
+  const imageHeight = size === "large" ? "h-56 sm:h-60" : "h-44";
+
   const content = (
     <article className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm ring-1 ring-slate-100 transition hover:-translate-y-1 hover:border-emerald-200 hover:bg-white hover:shadow-lg">
-      <div className="relative h-44 w-full overflow-hidden">
+      <div className={`relative ${imageHeight} w-full overflow-hidden`}>
         <Image
           src={cover}
           alt={listing.title}
@@ -29,6 +33,16 @@ export function ListingCard({ listing, showAdminMeta, showSellerNote, href }: Li
         {listing.featured && (
           <span className="absolute left-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase text-white shadow-sm">
             Vitrin
+          </span>
+        )}
+        {(listing.category === "konut" || listing.category === "isYeri") && listing.rooms && (
+          <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-800 shadow-sm">
+            {listing.rooms}
+          </span>
+        )}
+        {listing.category === "arsa" && listing.net_area != null && (
+          <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-800 shadow-sm">
+            {listing.net_area} m²
           </span>
         )}
         <span className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-800 shadow-sm">

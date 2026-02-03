@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export type FilterType = "satilik" | "kiralik" | "hepsi";
 export type FilterCategory = "konut" | "isYeri" | "arsa" | "hepsi";
@@ -8,13 +8,21 @@ export type FilterCategory = "konut" | "isYeri" | "arsa" | "hepsi";
 export interface HorizontalFilterState {
   type: FilterType;
   category: FilterCategory;
-  /** Çoklu seçim: boş = tümü */
   rooms: string[];
-  /** Çoklu seçim: boş = tümü */
   priceRanges: string[];
   province: string;
   district: string;
   neighborhood: string;
+  /** Yakınımdaki ilanlar: km cinsinden yarıçap; null = kapalı */
+  locationRadiusKm: number | null;
+  userLat: number | null;
+  userLng: number | null;
+  locationError: string | null;
+}
+
+interface TrAddressProvince {
+  name: string;
+  towns: { name: string; districts: { name: string; quarters: { name: string }[] }[] }[];
 }
 
 const ROOM_OPTIONS = ["1+0", "1+1", "2+1", "3+1", "4+1", "5+1"];
@@ -40,30 +48,40 @@ const SALE_PRICE_RANGES = [
   { value: "10000000-999999999999", label: "10.000.000 TL üzeri" },
 ];
 
+const NEAR_ME_RADII = [
+  { km: 1, label: "1 km" },
+  { km: 5, label: "5 km" },
+  { km: 10, label: "10 km" },
+];
+
 interface HorizontalFiltersProps {
   value: HorizontalFilterState;
   onChange: (next: HorizontalFilterState) => void;
 }
 
 export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
-  const [roomsOpen, setRoomsOpen] = useState(false);
-  const [priceOpen, setPriceOpen] = useState(false);
-  const roomsRef = useRef<HTMLDivElement>(null);
-  const priceRef = useRef<HTMLDivElement>(null);
+  const [addressData, setAddressData] = useState<TrAddressProvince[] | null>(null);
 
   useEffect(() => {
-    const close = (e: MouseEvent) => {
-      if (
-        roomsRef.current && !roomsRef.current.contains(e.target as Node) &&
-        priceRef.current && !priceRef.current.contains(e.target as Node)
-      ) {
-        setRoomsOpen(false);
-        setPriceOpen(false);
-      }
-    };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    fetch("/veri/tr-address.json")
+      .then((r) => r.json())
+      .then(setAddressData)
+      .catch(() => setAddressData([]));
   }, []);
+
+  const provinces = useMemo(() => addressData?.map((p) => p.name) ?? [], [addressData]);
+  const districts = useMemo(() => {
+    if (!addressData || !value.province) return [];
+    const p = addressData.find((x) => x.name === value.province);
+    return p?.towns?.map((t) => t.name) ?? [];
+  }, [addressData, value.province]);
+  const neighborhoods = useMemo(() => {
+    if (!addressData || !value.province || !value.district) return [];
+    const p = addressData.find((x) => x.name === value.province);
+    const town = p?.towns?.find((t) => t.name === value.district);
+    if (!town?.districts) return [];
+    return town.districts.flatMap((d) => d.quarters.map((q) => q.name));
+  }, [addressData, value.province, value.district]);
 
   const update = (patch: Partial<HorizontalFilterState>) => {
     onChange({ ...value, ...patch });
@@ -83,24 +101,34 @@ export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
     update({ priceRanges: next });
   };
 
+  const requestLocation = (km: number) => {
+    update({ locationError: null });
+    if (!navigator.geolocation) {
+      update({ locationError: "Tarayıcınız konum desteklemiyor." });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        update({
+          locationRadiusKm: km,
+          userLat: pos.coords.latitude,
+          userLng: pos.coords.longitude,
+          locationError: null,
+        });
+      },
+      () => {
+        update({
+          locationError: "Konum izni verilmedi veya alınamadı.",
+          locationRadiusKm: null,
+          userLat: null,
+          userLng: null,
+        });
+      }
+    );
+  };
+
   const priceRangesList =
     value.type === "kiralik" ? RENTAL_PRICE_RANGES : SALE_PRICE_RANGES;
-
-  const roomsLabel =
-    value.rooms.length === 0
-      ? "Tümü"
-      : value.rooms.length <= 2
-        ? value.rooms.join(", ")
-        : `${value.rooms.length} oda seçili`;
-
-  const priceLabel =
-    value.priceRanges.length === 0
-      ? "Tümü"
-      : value.priceRanges.length <= 2
-        ? value.priceRanges
-            .map((v) => priceRangesList.find((p) => p.value === v)?.label ?? v)
-            .join(", ")
-        : `${value.priceRanges.length} aralık seçili`;
 
   if (value.type === "hepsi") {
     return (
@@ -117,6 +145,13 @@ export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
                 category: "hepsi",
                 rooms: [],
                 priceRanges: [],
+                province: "",
+                district: "",
+                neighborhood: "",
+                locationRadiusKm: null,
+                userLat: null,
+                userLng: null,
+                locationError: null,
               })
             }
             className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 py-8 text-xl font-bold text-emerald-800 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100 active:scale-[0.98]"
@@ -131,6 +166,13 @@ export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
                 category: "hepsi",
                 rooms: [],
                 priceRanges: [],
+                province: "",
+                district: "",
+                neighborhood: "",
+                locationRadiusKm: null,
+                userLat: null,
+                userLng: null,
+                locationError: null,
               })
             }
             className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 py-8 text-xl font-bold text-emerald-800 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100 active:scale-[0.98]"
@@ -143,7 +185,7 @@ export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
   }
 
   return (
-    <div className="rounded-2xl border-2 border-emerald-100 bg-white p-6 shadow-md">
+    <div className="rounded-2xl border-2 border-emerald-100 bg-white p-4 shadow-md sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
@@ -153,6 +195,13 @@ export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
               category: "hepsi",
               rooms: [],
               priceRanges: [],
+              province: "",
+              district: "",
+              neighborhood: "",
+              locationRadiusKm: null,
+              userLat: null,
+              userLng: null,
+              locationError: null,
             })
           }
           className="text-sm font-medium text-slate-500 underline hover:text-emerald-600"
@@ -164,19 +213,21 @@ export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
         </span>
       </div>
 
-      <p className="mb-3 text-sm font-semibold text-slate-700">Kategori seçin</p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { value: "hepsi" as FilterCategory, label: "Tümü" },
-          { value: "konut" as FilterCategory, label: "Konut" },
-          { value: "isYeri" as FilterCategory, label: "İş Yeri" },
-          { value: "arsa" as FilterCategory, label: "Arsa" },
-        ].map((opt) => (
+      {/* Kategori: Sadece Konut, İş Yeri, Arsa (Tümü yok) */}
+      <p className="mb-2 text-sm font-semibold text-slate-700">Kategori</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {(
+          [
+            { value: "konut" as FilterCategory, label: "Konut" },
+            { value: "isYeri" as FilterCategory, label: "İş Yeri" },
+            { value: "arsa" as FilterCategory, label: "Arsa" },
+          ] as const
+        ).map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => update({ category: opt.value })}
-            className={`rounded-xl py-4 text-base font-semibold transition ${
+            className={`rounded-xl py-3 text-sm font-semibold transition sm:py-4 sm:text-base ${
               value.category === opt.value
                 ? "bg-emerald-600 text-white shadow-md"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -187,101 +238,165 @@ export function HorizontalFilters({ value, onChange }: HorizontalFiltersProps) {
         ))}
       </div>
 
-      {/* Oda + Fiyat yan yana, tam genişlik, dropdown'lar yüksek z-index */}
-      <div className="mt-4 grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-        {value.category === "konut" && (
-          <div
-            ref={roomsRef}
-            className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <span className="text-sm font-medium text-slate-600">Oda sayısı</span>
-            <div className="relative w-full sm:flex-1 sm:max-w-[280px]">
+      {/* Oda sayısı – direkt çoklu seçim (sadece konut) */}
+      {value.category === "konut" && (
+        <>
+          <p className="mt-4 mb-2 text-sm font-semibold text-slate-700">Oda sayısı</p>
+          <div className="flex flex-wrap gap-2">
+            {ROOM_OPTIONS.map((r) => (
               <button
+                key={r}
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRoomsOpen(!roomsOpen);
-                  setPriceOpen(false);
-                }}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:border-emerald-400"
+                onClick={() => toggleRoom(r)}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                  value.rooms.includes(r)
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
               >
-                {roomsLabel} ▾
+                {r}
               </button>
-              {roomsOpen && (
-                <div
-                  className="absolute left-0 right-0 top-full z-[100] mt-1 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="grid grid-cols-3 gap-2">
-                    {ROOM_OPTIONS.map((r) => (
-                      <label
-                        key={r}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={value.rooms.includes(r)}
-                          onChange={() => toggleRoom(r)}
-                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        {r}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
-        )}
-        <div
-          ref={priceRef}
-          className={`flex w-full flex-col gap-2 sm:flex-row sm:items-center ${value.category === "konut" ? "sm:justify-between" : "sm:col-span-2 sm:justify-center"} ${value.category !== "konut" ? "sm:col-span-2" : ""}`}
-        >
-          <span className="text-sm font-medium text-slate-600">Fiyat aralığı</span>
-          <div className={`relative w-full sm:max-w-[320px] ${value.category === "konut" ? "sm:flex-1" : "sm:mx-auto"}`}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setPriceOpen(!priceOpen);
-                setRoomsOpen(false);
-              }}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:border-emerald-400"
-            >
-              {priceLabel} ▾
-            </button>
-            {priceOpen && (
-              <div
-                className="absolute left-0 right-0 top-full z-[100] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                  {priceRangesList.map((p) => (
-                    <label
-                      key={p.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={value.priceRanges.includes(p.value)}
-                        onChange={() => togglePriceRange(p.value)}
-                        className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="truncate">{p.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+        </>
+      )}
+
+      {/* Fiyat aralığı – direkt çoklu seçim */}
+      <p className="mt-4 mb-2 text-sm font-semibold text-slate-700">Fiyat aralığı</p>
+      <div className="flex flex-wrap gap-2">
+        {priceRangesList.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            onClick={() => togglePriceRange(p.value)}
+            className={`rounded-xl px-3 py-2 text-xs font-medium transition sm:px-4 sm:text-sm ${
+              value.priceRanges.includes(p.value)
+                ? "bg-emerald-600 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* İl – İlçe – Mahalle */}
+      <p className="mt-4 mb-2 text-sm font-semibold text-slate-700">Konum (İl / İlçe / Mahalle)</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">İl</label>
+          <select
+            value={value.province}
+            onChange={(e) => update({ province: e.target.value, district: "", neighborhood: "" })}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          >
+            <option value="">Tümü</option>
+            {provinces.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">İlçe</label>
+          <select
+            value={value.district}
+            onChange={(e) => update({ district: e.target.value, neighborhood: "" })}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            disabled={!value.province}
+          >
+            <option value="">Tümü</option>
+            {districts.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-500">Mahalle</label>
+          <select
+            value={value.neighborhood}
+            onChange={(e) => update({ neighborhood: e.target.value })}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            disabled={!value.district}
+          >
+            <option value="">Tümü</option>
+            {neighborhoods.slice(0, 500).map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+            {neighborhoods.length > 500 && (
+              <option value="" disabled>+{neighborhoods.length - 500} daha</option>
             )}
-          </div>
+          </select>
         </div>
       </div>
+
+      {/* Yakınımdaki ilanlar */}
+      <p className="mt-4 mb-2 text-sm font-semibold text-slate-700">Yakınımdaki ilanlar</p>
+      <p className="mb-2 text-xs text-slate-500">
+        Konum izni verirseniz seçtiğiniz yarıçaptaki ilanlar listelenir. (İlanların konum bilgisi olmalıdır.)
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {NEAR_ME_RADII.map(({ km, label }) => (
+          <button
+            key={km}
+            type="button"
+            onClick={() => (value.locationRadiusKm === km ? update({ locationRadiusKm: null, userLat: null, userLng: null }) : requestLocation(km))}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              value.locationRadiusKm === km
+                ? "bg-amber-500 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {label} çapında
+          </button>
+        ))}
+        {value.locationRadiusKm != null && (
+          <button
+            type="button"
+            onClick={() => update({ locationRadiusKm: null, userLat: null, userLng: null })}
+            className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-300"
+          >
+            Kapat
+          </button>
+        )}
+      </div>
+      {value.locationError && (
+        <p className="mt-2 text-sm text-red-600">{value.locationError}</p>
+      )}
     </div>
   );
 }
 
+function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export function filterListingsByHorizontalState<
-  T extends { type: string; category: string; rooms: string | null; price: number }
+  T extends {
+    type: string;
+    category: string;
+    rooms: string | null;
+    price: number;
+    province: string | null;
+    district: string | null;
+    neighborhood: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }
 >(items: T[], filters: HorizontalFilterState): T[] {
   return items.filter((l) => {
     if (filters.type !== "hepsi" && l.type !== filters.type) return false;
@@ -297,6 +412,17 @@ export function filterListingsByHorizontalState<
         return l.price >= min && l.price <= max;
       });
       if (!inAnyRange) return false;
+    }
+    if (filters.province && (l.province || "").trim() !== "" && (l.province || "").trim() !== filters.province)
+      return false;
+    if (filters.district && (l.district || "").trim() !== "" && (l.district || "").trim() !== filters.district)
+      return false;
+    if (filters.neighborhood && (l.neighborhood || "").trim() !== "" && (l.neighborhood || "").trim() !== filters.neighborhood)
+      return false;
+    if (filters.locationRadiusKm != null && filters.userLat != null && filters.userLng != null) {
+      if (l.latitude == null || l.longitude == null) return false;
+      const km = haversineKm(filters.userLat, filters.userLng, l.latitude, l.longitude);
+      if (km > filters.locationRadiusKm) return false;
     }
     return true;
   });

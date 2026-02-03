@@ -34,7 +34,7 @@ export default function IlanEklePage() {
     const parking_type = formData.get("parking_type") as string;
     const usage_status = formData.get("usage_status") as string;
     const deed_status = formData.get("deed_status") as string;
-    const duess = Number(formData.get("duess") || 0);
+    const dues = Number(formData.get("dues") || 0);
     const is_credit_eligible = formData.get("is_credit_eligible") === "on";
     const credit_limit = formData.get("credit_limit")
       ? Number(formData.get("credit_limit"))
@@ -85,7 +85,7 @@ export default function IlanEklePage() {
       credit_limit: credit_limit ?? null,
       eminevim_fuzul_evim_uygun,
       deed_status,
-      duess,
+      dues,
       rooms,
       neighborhood,
       province,
@@ -352,7 +352,7 @@ export default function IlanEklePage() {
           <div>
             <label className="mb-1 block text-slate-700">Aidat (TL)</label>
             <input
-              name="duess"
+              name="dues"
               type="number"
               className="w-full rounded-lg border border-slate-200 px-3 py-1.5 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             />

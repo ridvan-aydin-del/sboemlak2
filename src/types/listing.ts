@@ -53,5 +53,8 @@ export interface Listing {
   admin_note?: string | null;
   /** Admin notu - sadece admin görür (DB: gizli_not) */
   gizli_not?: string | null;
+  /** Yakınımdaki ilanlar filtresi için (opsiyonel) */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 

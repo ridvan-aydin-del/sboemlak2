@@ -8,6 +8,7 @@ import {
   type HorizontalFilterState,
 } from "@/components/HorizontalFilters";
 import { SidebarWidgets } from "@/components/SidebarWidgets";
+import { SideListingSlider } from "@/components/SideListingSlider";
 import { LeadForm } from "@/components/LeadForm";
 import type { Listing } from "@/types/listing";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +24,10 @@ const defaultFilters: HorizontalFilterState = {
   province: "",
   district: "",
   neighborhood: "",
+  locationRadiusKm: null,
+  userLat: null,
+  userLng: null,
+  locationError: null,
 };
 
 export default function Home() {
@@ -87,9 +92,13 @@ export default function Home() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Vitrin Ürünler - Tam genişlik, öne çıkan */}
-        <section className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 shadow-lg">
+    <div className="space-y-4 md:space-y-6">
+      {/* Üst kısım (above-the-fold): Yan sliders + Vitrin + Filtre — ilk açılışta hepsi görünsün */}
+      <div className="flex gap-3 lg:gap-4">
+        <SideListingSlider listings={listings} offsetShift={0} />
+        <div className="min-w-0 flex-1 space-y-4 md:space-y-6">
+      {/* Vitrin Ürünler */}
+        <section className="rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-4 shadow-lg sm:p-6">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <h1 className="text-xl font-bold text-emerald-900">
@@ -141,12 +150,12 @@ export default function Home() {
                   <ChevronLeft size={20} />
                 </button>
 
-                <div className="mx-12">
+                <div className="mx-4 sm:mx-8 md:mx-12">
                   <article className="group overflow-hidden rounded-2xl border-2 border-emerald-200/70 bg-white shadow-md transition hover:shadow-xl">
-                    <div className="flex flex-row">
+                    <div className="flex flex-col sm:flex-row">
                       <Link
                         href={`/ilan/${item.id}`}
-                        className="relative block h-52 w-[44%] min-w-[160px] max-w-[320px] shrink-0 overflow-hidden bg-slate-100 sm:h-60 md:h-72 md:w-[48%]"
+                        className="relative block h-52 w-full shrink-0 overflow-hidden bg-slate-100 sm:h-52 sm:w-[44%] sm:min-w-[180px] sm:max-w-[300px] md:h-60 lg:h-72 md:w-[48%]"
                       >
                         <Image
                           src={cover}
@@ -262,8 +271,8 @@ export default function Home() {
           })()}
         </section>
 
-      {/* Yatay Filtreler - dropdown'lar ilanların üstünde görünsün diye overflow-visible */}
-      <section className="relative z-20 min-h-[200px] rounded-2xl bg-slate-200">
+      {/* Yatay Filtreler */}
+      <section className="relative z-20 min-h-0 rounded-2xl bg-slate-200">
         <div
           className="absolute inset-0 rounded-2xl bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: "url(/family.jpg)" }}
@@ -273,25 +282,29 @@ export default function Home() {
           <HorizontalFilters value={filters} onChange={setFilters} />
         </div>
       </section>
+        </div>
+        <SideListingSlider listings={listings} offsetShift={4} />
+      </div>
 
-      {/* Sol: Kredi / İletişim & Konum / Google Puan — Sağ: Tüm İlanlar */}
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,3fr)]">
-        <aside className="order-2 lg:order-1">
+      {/* Aşağı kısım: Yukarıyla aynı genişlikte (sliders yok, tam genişlik) — Kredi, İletişim, İlan kartları */}
+      <section className="grid w-full gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+        <aside className="order-2 lg:order-1 lg:max-w-[280px]">
           <SidebarWidgets />
         </aside>
-        <div className="order-1 space-y-3 lg:order-2">
+        <div className="order-1 min-w-0 space-y-3 lg:order-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900">Tüm İlanlar</h2>
             <span className="text-[11px] text-slate-500">
               {filtered.length} ilan bulundu
             </span>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
             {filtered.slice(0, 12).map((listing) => (
               <ListingCard
                 key={listing.id}
                 listing={listing}
                 href={`/ilan/${listing.id}`}
+                size="large"
               />
             ))}
             {filtered.length === 0 && (
@@ -305,7 +318,7 @@ export default function Home() {
       </section>
 
       {/* İlan talep formu */}
-      <section className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+      <section className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
         <LeadForm compact />
       </section>
     </div>

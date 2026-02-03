@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { Building2 } from "lucide-react";
-
+import Image from "next/image";
+import bankalar from "../../public/bankalar.gif";
 export function Footer() {
   return (
     <footer className="mt-12 border-t border-slate-200/80 bg-gradient-to-t from-slate-50 via-white to-white">
       <div className="mx-auto max-w-7xl px-4 py-6 text-xs text-slate-600 lg:px-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
           <div className="flex min-w-0 shrink-0 items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm">
-              <Building2 size={16} />
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+              <Image src="/logo.png" alt="S.B.O Gayrimenkul" fill className="object-contain" sizes="40px" />
             </div>
             <div className="min-w-0">
-              <span className="block font-semibold text-slate-900">SBO Emlak</span>
+              <span className="block font-semibold text-slate-900">S.B.O Gayrimenkul</span>
               <span className="text-[11px]">
                 Yetki Belge No: <span className="font-mono">1234567</span>
               </span>
@@ -80,7 +80,7 @@ export function Footer() {
           </p>
           <div className="flex justify-center">
             <img
-              src="https://i.hizliresim.com/Pklyad.gif"
+              src={bankalar.src}
               alt="Anlaşmalı bankalar"
               className="h-auto max-h-14 w-auto object-contain sm:max-h-16"
             />
